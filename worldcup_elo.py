@@ -50,7 +50,7 @@ def print_predictions(team_elo, workbook):
             row+=1
 
 def print_all(team_elo):
-    workbook = xlsxwriter.Workbook('predictions.xlsx')
+    workbook = xlsxwriter.Workbook('ELO_predictions.xlsx')
     sorted_elo = sorted(team_elo.items(), key=operator.itemgetter(1), reverse=True)
     print_scores(sorted_elo, workbook)
     print_predictions(team_elo, workbook)

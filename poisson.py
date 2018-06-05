@@ -6,7 +6,7 @@ import xlsxwriter
 
 
 def print_predictions(team_elo):
-    workbook = xlsxwriter.Workbook('predictions.xlsx')
+    workbook = xlsxwriter.Workbook('Poisson_predictions.xlsx')
     BOLD = workbook.add_format({'bold': True})
     worksheet = workbook.add_worksheet('ELO Scores')
     row, col = 1, 0
@@ -30,12 +30,8 @@ def print_predictions(team_elo):
     row, col = 1, 0
     worksheet.write(0,0, 'Team 1', BOLD)
     worksheet.write(0,1, 'Team 2', BOLD)
-    worksheet.write(0,2, 'Off1', BOLD)
-    worksheet.write(0,3, 'Def1', BOLD)
-    worksheet.write(0,4, 'Off2', BOLD)
-    worksheet.write(0,5, 'Def2', BOLD)
-    worksheet.write(0,6, 'xG1', BOLD)
-    worksheet.write(0,7, 'xG2', BOLD)
+    worksheet.write(0,2, 'xG1', BOLD)
+    worksheet.write(0,3, 'xG2', BOLD)
     # worksheet.write(0,8, 'P(1)', BOLD)
     # worksheet.write(0,9, 'P(2)', BOLD)
     for t1 in worldcup_elo:
@@ -44,12 +40,10 @@ def print_predictions(team_elo):
                 continue
             worksheet.write(row, col, t1)
             worksheet.write(row, col + 1, t2)
-            worksheet.write(row, col + 2, worldcup_elo[t1][0])
-            worksheet.write(row, col + 3, worldcup_elo[t2][0])
-            worksheet.write(row, col + 4, worldcup_elo[t1][1])
-            worksheet.write(row, col + 5, worldcup_elo[t2][1])
-            worksheet.write(row, col + 6, 1.35*worldcup_elo[t1][0]/worldcup_elo[t2][1])
-            worksheet.write(row, col + 7, 1.35*worldcup_elo[t2][0]/worldcup_elo[t1][1])
+            t1_off, t1_def = worldcup_elo[t1]
+            t2_off, t2_def = worldcup_elo[t2]
+            worksheet.write(row, col + 2, 1.35*t1_off/t2_def)
+            worksheet.write(row, col + 3, 1.35*t2_off/t1_def)
             row+=1
 
     workbook.close()
