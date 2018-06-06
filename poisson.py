@@ -87,6 +87,17 @@ def print_all(team_elo):
     print_group_predictions(workbook, cleaned_elo)
     workbook.close()
 
+def choose_eta_weight(tourney):
+    if "World Cup Qualification" in tourney:
+        k = 0.001
+    elif "Copa America" in tourney or "Cup of Nations" in tourney or "Asian Cup" in tourney or "Euro Cup" in tourney or "Gold Cup" in tourney:
+        k = 0.01
+    elif "World Cup" in tourney or "World Championship" in tourney:
+        k = 0.1
+    else:
+        k = 0.0001
+    return k
+
 def calc_elo():
     #read in the results of previous games
     sheet = pd.read_csv('path/scoresParsed.csv')
@@ -106,6 +117,8 @@ def calc_elo():
                 team_elo[t1] = (base_score, base_score)
             if t2 not in team_elo:
                 team_elo[t2] = (base_score, base_score)
+
+            eta = choose_eta_weight(row['Event Name'])
 
             t1_off, t1_def = team_elo[t1]
             t2_off, t2_def = team_elo[t2]
