@@ -59,12 +59,31 @@ def get_results_matrix(worldcup_elo):
                 p_t1_xGoals = (t1_xG**x) * (np.exp(1)**(-1*t1_xG)) / math.factorial(x)
                 p_t2_xGoals = (t2_xG**x) * (np.exp(1)**(-1*t2_xG)) / math.factorial(x)
                 resultsMatrix[row][6 + x] = p_t1_xGoals
-                resultsMatrix[row][13 + x] = p_t1_xGoals
+                resultsMatrix[row][13 + x] = p_t2_xGoals
                 p_sum_t1+=p_t1_xGoals
                 p_sum_t2+=p_t2_xGoals
 
             resultsMatrix[row][12] = 1 - p_sum_t1
             resultsMatrix[row][19] = 1 - p_sum_t2
+
+            probWin = 0
+            probDraw = 0
+            probLoss = 0
+            # probability of draw
+            for x in range(0, 7):
+                probDraw+=(resultsMatrix[row][6 + x] * resultsMatrix[row][13 + x])
+            #probability of win
+            for x in range(0, 7):
+                for y in range(0, x):
+                    probWin+=(resultsMatrix[row][6 + x] * resultsMatrix[row][13 + y])
+            #probability of loss
+            for x in range(0, 7):
+                for y in range(6, x, -1):
+                    probLoss+=(resultsMatrix[row][6 + x] * resultsMatrix[row][13 + y])
+
+            resultsMatrix[row][20] = probWin
+            resultsMatrix[row][21] = probDraw
+            resultsMatrix[row][22] = probLoss
             row+=1
     return resultsMatrix
 
@@ -91,7 +110,9 @@ def print_group_prediction_labels(worksheet, BOLD):
     worksheet.write(0,17, 'P(T2_4G)', BOLD)
     worksheet.write(0,18, 'P(T2_5G)', BOLD)
     worksheet.write(0,19, 'P(T2_6G+)', BOLD)
-
+    worksheet.write(0,20, 'P(T1 Wins', BOLD)
+    worksheet.write(0,21, 'P(Draw)', BOLD)
+    worksheet.write(0,22, 'P(T2 Wins)', BOLD)
 
 def print_group_predictions(workbook, worldcup_elo):
     BOLD = workbook.add_format({'bold': True})
@@ -105,37 +126,6 @@ def print_group_predictions(workbook, worldcup_elo):
     for row in range(0, num_rows):
         for col in range(0, num_cols):
             worksheet.write(row + 1, col, resultsMatrix[row][col])
-    # for t1 in worldcup_elo:
-    #     for t2 in worldcup_elo:
-    #         t1_off, t1_def, t1_group, t1_num = worldcup_elo[t1]
-    #         t2_off, t2_def, t2_group, t2_num = worldcup_elo[t2]
-    #         if t1==t2 or t1_num > t2_num:
-    #             continue
-    #         t1_xG = 1.35*t1_off/t2_def
-    #         t2_xG = 1.35*t2_off/t1_def
-    #         worksheet.write(row, col, t1_group)
-    #         worksheet.write(row, col + 1, t2_group)
-    #         worksheet.write(row, col + 2, t1)
-    #         worksheet.write(row, col + 3, t2)
-    #         worksheet.write(row, col + 4, t1_xG)
-    #         worksheet.write(row, col + 5, t2_xG)
-    #
-    #         p_sum_t1 = 0
-    #         p_sum_t2 = 0
-    #         for x in range(0, 6):
-    #             p_t1_xGoals = (t1_xG**x) * (np.exp(1)**(-1*t1_xG)) / math.factorial(x)
-    #             p_t2_xGoals = (t2_xG**x) * (np.exp(1)**(-1*t2_xG)) / math.factorial(x)
-    #
-    #         for x in range(0, 6):
-    #             worksheet.write(row, col + 6 + x, p_t1_xGoals)
-    #             worksheet.write(row, col + 13 + x, p_t2_xGoals)
-    #             p_sum_t1+=p_t1_xGoals
-    #             p_sum_t2+=p_t2_xGoals
-    #
-    #         worksheet.write(row, col + 12, 1 - p_sum_t1)
-    #         worksheet.write(row, col + 19, 1 - p_sum_t2)
-    #
-    #         row+=1
 
 def print_all(team_elo):
     world_cup_teams = get_world_cup_teams(team_elo)
@@ -166,7 +156,7 @@ def get_continent_score(continent):
     }
     return switcher.get(continent, ValueError("This should never happen"))
 
-def calc_elo():
+def calc_elo(numIterations):
     #read in the results of previous games
     sheet = pd.read_csv('src/scoresParsed.csv')
     sheet.dropna()
@@ -189,7 +179,7 @@ def calc_elo():
         if t2 not in team_elo:
             team_elo[t2] = (continent, base_score, base_score)
 
-    for x in range(0,100):
+    for x in range(0,numIterations):
         print("Currently on attempt ", x)
         for i, row in sheet.iterrows():
             t1 = row['Home team']
@@ -233,5 +223,5 @@ def calc_elo():
     #return team_elo
 
 if __name__ == '__main__':
-    team_elo = calc_elo()
+    team_elo = calc_elo(100)
     print_all(team_elo)
