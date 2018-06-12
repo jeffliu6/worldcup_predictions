@@ -31,10 +31,44 @@ def print_scores(workbook, worldcup_elo):
         row+=1
     return worldcup_elo
 
-def print_group_predictions(workbook, worldcup_elo):
-    BOLD = workbook.add_format({'bold': True})
-    worksheet = workbook.add_worksheet('Group Stage Predictions')
-    row, col = 1, 0
+def get_results_matrix(worldcup_elo):
+    n = 496
+    m = 23
+    resultsMatrix = [[""] * m for i in range(n)]
+
+    row = 0
+    for t1 in worldcup_elo:
+        for t2 in worldcup_elo:
+            t1_off, t1_def, t1_group, t1_num = worldcup_elo[t1]
+            t2_off, t2_def, t2_group, t2_num = worldcup_elo[t2]
+            if t1==t2 or t1_num > t2_num:
+                continue
+            t1_xG = 1.35*t1_off/t2_def
+            t2_xG = 1.35*t2_off/t1_def
+
+            resultsMatrix[row][0] = t1_group
+            resultsMatrix[row][1] = t2_group
+            resultsMatrix[row][2] = t1
+            resultsMatrix[row][3] = t2
+            resultsMatrix[row][4] = t1_xG
+            resultsMatrix[row][5] = t2_xG
+
+            p_sum_t1 = 0
+            p_sum_t2 = 0
+            for x in range(0, 6):
+                p_t1_xGoals = (t1_xG**x) * (np.exp(1)**(-1*t1_xG)) / math.factorial(x)
+                p_t2_xGoals = (t2_xG**x) * (np.exp(1)**(-1*t2_xG)) / math.factorial(x)
+                resultsMatrix[row][6 + x] = p_t1_xGoals
+                resultsMatrix[row][13 + x] = p_t1_xGoals
+                p_sum_t1+=p_t1_xGoals
+                p_sum_t2+=p_t2_xGoals
+
+            resultsMatrix[row][12] = 1 - p_sum_t1
+            resultsMatrix[row][19] = 1 - p_sum_t2
+            row+=1
+    return resultsMatrix
+
+def print_group_prediction_labels(worksheet, BOLD):
     worksheet.write(0,0, 'Group: 1', BOLD)
     worksheet.write(0,1, 'Group: 2', BOLD)
     worksheet.write(0,2, 'Team 1', BOLD)
@@ -58,37 +92,50 @@ def print_group_predictions(workbook, worldcup_elo):
     worksheet.write(0,18, 'P(T2_5G)', BOLD)
     worksheet.write(0,19, 'P(T2_6G+)', BOLD)
 
-    for t1 in worldcup_elo:
-        for t2 in worldcup_elo:
-            t1_off, t1_def, t1_group, t1_num = worldcup_elo[t1]
-            t2_off, t2_def, t2_group, t2_num = worldcup_elo[t2]
-            if t1==t2 or t1_num > t2_num:
-                continue
-            t1_xG = 1.35*t1_off/t2_def
-            t2_xG = 1.35*t2_off/t1_def
-            worksheet.write(row, col, t1_group)
-            worksheet.write(row, col + 1, t2_group)
-            worksheet.write(row, col + 2, t1)
-            worksheet.write(row, col + 3, t2)
-            worksheet.write(row, col + 4, t1_xG)
-            worksheet.write(row, col + 5, t2_xG)
 
-            p_sum_t1 = 0
-            p_sum_t2 = 0
-            for x in range(0, 6):
-                p_t1_xGoals = (t1_xG**x) * (np.exp(1)**(-1*t1_xG)) / math.factorial(x)
-                p_t2_xGoals = (t2_xG**x) * (np.exp(1)**(-1*t2_xG)) / math.factorial(x)
+def print_group_predictions(workbook, worldcup_elo):
+    BOLD = workbook.add_format({'bold': True})
+    worksheet = workbook.add_worksheet('Group Stage Predictions')
+    print_group_prediction_labels(worksheet, BOLD)
 
-            for x in range(0, 6):
-                worksheet.write(row, col + 6 + x, p_t1_xGoals)
-                worksheet.write(row, col + 13 + x, p_t2_xGoals)
-                p_sum_t1+=p_t1_xGoals
-                p_sum_t2+=p_t2_xGoals
+    resultsMatrix = get_results_matrix(worldcup_elo)
+    num_rows = len(resultsMatrix)
+    num_cols = len(resultsMatrix[0])
 
-            worksheet.write(row, col + 12, 1 - p_sum_t1)
-            worksheet.write(row, col + 19, 1 - p_sum_t2)
-
-            row+=1
+    for row in range(0, num_rows):
+        for col in range(0, num_cols):
+            worksheet.write(row + 1, col, resultsMatrix[row][col])
+    # for t1 in worldcup_elo:
+    #     for t2 in worldcup_elo:
+    #         t1_off, t1_def, t1_group, t1_num = worldcup_elo[t1]
+    #         t2_off, t2_def, t2_group, t2_num = worldcup_elo[t2]
+    #         if t1==t2 or t1_num > t2_num:
+    #             continue
+    #         t1_xG = 1.35*t1_off/t2_def
+    #         t2_xG = 1.35*t2_off/t1_def
+    #         worksheet.write(row, col, t1_group)
+    #         worksheet.write(row, col + 1, t2_group)
+    #         worksheet.write(row, col + 2, t1)
+    #         worksheet.write(row, col + 3, t2)
+    #         worksheet.write(row, col + 4, t1_xG)
+    #         worksheet.write(row, col + 5, t2_xG)
+    #
+    #         p_sum_t1 = 0
+    #         p_sum_t2 = 0
+    #         for x in range(0, 6):
+    #             p_t1_xGoals = (t1_xG**x) * (np.exp(1)**(-1*t1_xG)) / math.factorial(x)
+    #             p_t2_xGoals = (t2_xG**x) * (np.exp(1)**(-1*t2_xG)) / math.factorial(x)
+    #
+    #         for x in range(0, 6):
+    #             worksheet.write(row, col + 6 + x, p_t1_xGoals)
+    #             worksheet.write(row, col + 13 + x, p_t2_xGoals)
+    #             p_sum_t1+=p_t1_xGoals
+    #             p_sum_t2+=p_t2_xGoals
+    #
+    #         worksheet.write(row, col + 12, 1 - p_sum_t1)
+    #         worksheet.write(row, col + 19, 1 - p_sum_t2)
+    #
+    #         row+=1
 
 def print_all(team_elo):
     world_cup_teams = get_world_cup_teams(team_elo)
