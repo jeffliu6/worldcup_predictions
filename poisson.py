@@ -42,9 +42,11 @@ def print_scores(workbook, worldcup_elo):
         row+=1
     return (worksheet, worldcup_elo)
 
-def get_results_matrix(worldcup_elo):
+def get_results_matrix(worldcup_elo, keep_all):
     n = 496
     m = 23
+    if keep_all:
+        n = 992
     resultsMatrix = [[""] * m for i in range(n)]
 
     row = 0
@@ -52,7 +54,9 @@ def get_results_matrix(worldcup_elo):
         for t2 in worldcup_elo:
             t1_off, t1_def, t1_group, t1_num = worldcup_elo[t1]
             t2_off, t2_def, t2_group, t2_num = worldcup_elo[t2]
-            if t1==t2 or t1_num > t2_num:
+            if t1==t2:
+                continue
+            if keep_all == False and t1_num > t2_num:
                 continue
             t1_xG = 1.35*t1_off/t2_def
             t2_xG = 1.35*t2_off/t1_def
@@ -126,13 +130,14 @@ def print_match_prediction_labels(worksheet, BOLD):
     worksheet.write(0,22, 'P(T2 Wins)', BOLD)
 
 def print_match_predictions(worksheet, worldcup_elo):
-    resultsMatrix = get_results_matrix(worldcup_elo)
-    num_rows = len(resultsMatrix)
-    num_cols = len(resultsMatrix[0])
+    resultsMatrix = get_results_matrix(worldcup_elo, False)
+    allResultsMatrix = get_results_matrix(worldcup_elo, True)
+    num_rows = len(allResultsMatrix)
+    num_cols = len(allResultsMatrix[0])
 
     for row in range(0, num_rows):
         for col in range(0, num_cols):
-            worksheet.write(row + 1, col, resultsMatrix[row][col])
+            worksheet.write(row + 1, col, allResultsMatrix[row][col])
     return resultsMatrix
 
 def create_sim_matrix(resultsMatrix):
@@ -195,7 +200,6 @@ def rankTeams(myGroup):
     return myList
 
 def simulate_games(myMatrix, numSimulations):
-    print(myMatrix)
     #simulations = {'Saudi Arabia':[1,2,3,4,2,3,4,4,3,2,2,3], ...}
     simulations = {}
     for iterNum in range(0, numSimulations):
@@ -288,22 +292,23 @@ def sims_to_results(simulation_results):
     teamProbs = {}
     for team in simulation_results:
         myTeamResults = simulation_results[team]
-        myTeamSimsPlayed = len(myTeamResults)
-        numWins = 0
-        numSeconds = 0
-        numThirds = 0
-        numFourths = 0
+        myTeamSimsPlayed = float(len(myTeamResults))
+        numWins = 0.
+        numSeconds = 0.
+        numThirds = 0.
+        numFourths = 0.
         for groupSimmed in myTeamResults:
             if groupSimmed == 1:
                 numWins += 1
-            if groupSimmed == 2:
+            elif groupSimmed == 2:
                 numSeconds += 1
-            if groupSimmed == 3:
+            elif groupSimmed == 3:
                 numThirds += 1
-            if groupSimmed == 4:
+            elif groupSimmed == 4:
                 numFourths += 1
         winPrediction = numWins/myTeamSimsPlayed
         secondPrediction = numSeconds/myTeamSimsPlayed
+
         teamProbs[team] = (winPrediction, (winPrediction + secondPrediction))
     return teamProbs
 
@@ -335,7 +340,6 @@ def print_all(team_elo):
     resultsMatrix = print_match_predictions(worksheet, world_cup_teams)
 
     simulate_matrix = create_sim_matrix(resultsMatrix)
-
     game_sims = simulate_games(simulate_matrix, 10000)
     our_predictions = sims_to_results(game_sims)
 
@@ -437,5 +441,5 @@ def calc_elo(numIterations):
     return new_team_elo
 
 if __name__ == '__main__':
-    team_elo = calc_elo(1)
+    team_elo = calc_elo(1000)
     print_all(team_elo)
