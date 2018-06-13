@@ -25,13 +25,15 @@ def print_scores(workbook, worldcup_elo):
     worksheet.write(0,1, 'Group', BOLD)
     worksheet.write(0,2, 'Off Score', BOLD)
     worksheet.write(0,3, 'Def Score', BOLD)
+    worksheet.write(0,4, 'Group Win Probability', BOLD)
+    worksheet.write(0,5, 'Progression Probability', BOLD)
     for team in worldcup_elo:
         worksheet.write(row, col, team)
         worksheet.write(row, col+1, worldcup_elo[team][2])
         worksheet.write(row, col+2, worldcup_elo[team][0])
         worksheet.write(row, col+3, worldcup_elo[team][1])
         row+=1
-    return worldcup_elo
+    return (worksheet, worldcup_elo)
 
 def get_results_matrix(worldcup_elo):
     n = 496
@@ -185,12 +187,12 @@ def rankTeams(myGroup):
         rank += 1
     return myList
 
-def simulate_games(myMatrix):
+def simulate_games(myMatrix, numSimulations):
 
     #simulations = {'Saudi Arabia':[1,2,3,4,2,3,4,4,3,2,2,3], ...}
     simulations = {}
-    numSimulations = 1
     for iterNum in range(0, numSimulations):
+        print("Simulating World Cup attempt ", iterNum)
         for row in range(0, 48, 6):  #len(myMatrix), 6):          # for each group
             groupRanks = [] #handle ranking of groups
 
@@ -264,37 +266,71 @@ def simulate_games(myMatrix):
                 myGroup[t1] = (t1_gf, t1_ga, t1_gd, t1_cur_points)
                 myGroup[t2] = (t2_gf, t2_ga, t2_gd, t2_cur_points)
             groupRanks = rankTeams(myGroup)
-            print(groupRanks)
+
+            # add ranks to the simulations
             for myTuple in groupRanks:
                 teamRank, teamName, teamgf, teamga, teamgd, teamPoints = myTuple
+                currentList = simulations[teamName]
+                currentList.append(teamRank)
+                simulations[teamName] = currentList
+    return simulations
 
-    print(simulations, len(simulations))
+def sims_to_results(simulation_results):
+    teamProbs = {}
+    for team in simulation_results:
+        myTeamResults = simulation_results[team]
+        myTeamSimsPlayed = len(myTeamResults)
+        numWins = 0
+        numSeconds = 0
+        numThirds = 0
+        numFourths = 0
+        for groupSimmed in myTeamResults:
+            if groupSimmed == 1:
+                numWins += 1
+            if groupSimmed == 2:
+                numSeconds += 1
+            if groupSimmed == 3:
+                numThirds += 1
+            if groupSimmed == 4:
+                numFourths += 1
+        winPrediction = numWins/myTeamSimsPlayed
+        secondPrediction = numSeconds/myTeamSimsPlayed
+        teamProbs[team] = (winPrediction, (winPrediction + secondPrediction))
+    return teamProbs
 
+def print_group_predictions(worksheet, predictionDict, world_cup_teams):
+    row = 1
+    for team in world_cup_teams:
+        winChance, progChance = predictionDict[team]
+        worksheet.write(row,4, winChance)
+        worksheet.write(row,5, progChance)
+        row += 1
 
-
-
-            #
-            # teamDict = {}
-            # for gameNum in range(0, 6):
-            #
-            #
-            #     print(myMatrix[row + gameNum])
-            #
-    #print(myGroup)
+def add_group(predictionDict, world_cup_teams):
+    newDict = {}
+    for team in world_cup_teams:
+        _, _, group, _ = world_cup_teams[team]
+        newDict[(group + ":"+ team)] = predictionDict[team]
+    return newDict
 
 def print_all(team_elo):
     world_cup_teams = get_world_cup_teams(team_elo)
     workbook = xlsxwriter.Workbook('Poisson_predictions.xlsx')
     BOLD = workbook.add_format({'bold': True})
 
-    cleaned_elo = print_scores(workbook, world_cup_teams)
+    score_sheet, cleaned_elo = print_scores(workbook, world_cup_teams)
 
     worksheet = workbook.add_worksheet('Match Predictions')
     print_match_prediction_labels(worksheet, BOLD)
     resultsMatrix = print_match_predictions(worksheet, world_cup_teams)
 
     simulate_matrix = create_sim_matrix(resultsMatrix)
-    game_sims = simulate_games(simulate_matrix)
+    game_sims = simulate_games(simulate_matrix, 10000)
+    our_predictions = sims_to_results(game_sims)
+
+    print_group_predictions(score_sheet, our_predictions, world_cup_teams)
+    predictions_with_group = add_group(our_predictions, world_cup_teams)
+    #print(predictions_with_group)
 
     workbook.close()
 
@@ -315,14 +351,14 @@ def get_continent_score(continent):
         'Asia' : 1.2, #264
         'Africa' : 1.3, #168
         'North' : 1.3, #171
-        'Europe' : 1.8, #21
-        'South' : 2.2 #43
+        'Europe' : 1.7, #21
+        'South' : 2.0 #43
     }
     return switcher.get(continent, ValueError("This should never happen"))
 
 def calc_elo(numIterations):
     #read in the results of previous games
-    sheet = pd.read_csv('src/scoresParsed.csv')
+    sheet = pd.read_csv('src/2014-2018OFFICIAL_SportsWizz.csv')
     sheet.dropna()
 
     #initialization parameters
@@ -344,7 +380,7 @@ def calc_elo(numIterations):
             team_elo[t2] = (continent, base_score, base_score)
 
     for x in range(0,numIterations):
-        print("Currently on attempt ", x)
+        print("Converging ELO attempt ", x)
         for i, row in sheet.iterrows():
             t1 = row['Home team']
             t2 = row['Away team']
@@ -354,9 +390,11 @@ def calc_elo(numIterations):
             # some countries (Basque Country or Catalonia's games are ignored)
             if (t1 not in team_elo) or (t2 not in team_elo):
                 continue
-
             t1_cont, t1_off, t1_def = team_elo[t1]
             t2_cont, t2_off, t2_def = team_elo[t2]
+            if t1_cont == 'MISTAKE' or t2_cont == 'MISTAKE':
+                continue
+
             cont_power_ratio = get_continent_score(t1_cont)/get_continent_score(t2_cont)
 
             actual_t1_goals = max(row['Hometeam Halftime'], row['Hometeam Fulltime'], row['Hometeam Overtime'], row['Hometeam Extratime'])
@@ -382,10 +420,11 @@ def calc_elo(numIterations):
     for team in team_elo:
         continent, off_score, def_score = team_elo[team]
         power = get_continent_score(continent)
+        if continent == 'MISTAKE':
+            continue
         new_team_elo[team] = (continent, power*off_score, power*def_score)
     return new_team_elo
-    #return team_elo
 
 if __name__ == '__main__':
-    team_elo = calc_elo(1)
+    team_elo = calc_elo(100)
     print_all(team_elo)
