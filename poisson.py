@@ -87,7 +87,7 @@ def get_results_matrix(worldcup_elo):
             row+=1
     return resultsMatrix
 
-def print_group_prediction_labels(worksheet, BOLD):
+def print_match_prediction_labels(worksheet, BOLD):
     worksheet.write(0,0, 'Group: 1', BOLD)
     worksheet.write(0,1, 'Group: 2', BOLD)
     worksheet.write(0,2, 'Team 1', BOLD)
@@ -114,11 +114,7 @@ def print_group_prediction_labels(worksheet, BOLD):
     worksheet.write(0,21, 'P(Draw)', BOLD)
     worksheet.write(0,22, 'P(T2 Wins)', BOLD)
 
-def print_group_predictions(workbook, worldcup_elo):
-    BOLD = workbook.add_format({'bold': True})
-    worksheet = workbook.add_worksheet('Group Stage Predictions')
-    print_group_prediction_labels(worksheet, BOLD)
-
+def print_match_predictions(worksheet, worldcup_elo):
     resultsMatrix = get_results_matrix(worldcup_elo)
     num_rows = len(resultsMatrix)
     num_cols = len(resultsMatrix[0])
@@ -126,12 +122,48 @@ def print_group_predictions(workbook, worldcup_elo):
     for row in range(0, num_rows):
         for col in range(0, num_cols):
             worksheet.write(row + 1, col, resultsMatrix[row][col])
+    return resultsMatrix
+
+def create_sim_matrix(resultsMatrix):
+
+    simulate_matrix = []
+
+    for row in range(0, len(resultsMatrix)):
+        if resultsMatrix[row][0] != resultsMatrix[row][1]:
+            continue
+        dict = {}
+        dict['Team 1'] = resultsMatrix[row][2]
+        dict['Team 2'] = resultsMatrix[row][3]
+        dict['P(T1_0G)'] = resultsMatrix[row][6]
+        dict['P(T1_1G)'] = resultsMatrix[row][7]
+        dict['P(T1_2G)'] = resultsMatrix[row][8]
+        dict['P(T1_3G)'] = resultsMatrix[row][9]
+        dict['P(T1_4G)'] = resultsMatrix[row][10]
+        dict['P(T1_5G)'] = resultsMatrix[row][11]
+        dict['P(T1_6G+)'] = resultsMatrix[row][12]
+        dict['P(T2_0G)'] = resultsMatrix[row][13]
+        dict['P(T2_1G)'] = resultsMatrix[row][14]
+        dict['P(T2_2G)'] = resultsMatrix[row][15]
+        dict['P(T2_3G)'] = resultsMatrix[row][16]
+        dict['P(T2_4G)'] = resultsMatrix[row][17]
+        dict['P(T2_5G)'] = resultsMatrix[row][18]
+        dict['P(T2_6G+)'] = resultsMatrix[row][19]
+        simulate_matrix.append(dict)
+    return simulate_matrix
 
 def print_all(team_elo):
     world_cup_teams = get_world_cup_teams(team_elo)
     workbook = xlsxwriter.Workbook('Poisson_predictions.xlsx')
+    BOLD = workbook.add_format({'bold': True})
+
     cleaned_elo = print_scores(workbook, world_cup_teams)
-    print_group_predictions(workbook, world_cup_teams)
+
+    worksheet = workbook.add_worksheet('Match Predictions')
+    print_match_prediction_labels(worksheet, BOLD)
+    resultsMatrix = print_match_predictions(worksheet, world_cup_teams)
+
+    simulate_matrix = create_sim_matrix(resultsMatrix)
+    print(simulate_matrix[0])
     workbook.close()
 
 def choose_eta_weight(tourney):
@@ -223,5 +255,5 @@ def calc_elo(numIterations):
     #return team_elo
 
 if __name__ == '__main__':
-    team_elo = calc_elo(100)
+    team_elo = calc_elo(1)
     print_all(team_elo)
