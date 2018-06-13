@@ -3,6 +3,8 @@ import math
 import pandas as pd
 import xlsxwriter
 import numpy as np
+import random
+import operator
 
 def get_world_cup_teams(team_elo):
     worldcup_elo = {}
@@ -140,16 +142,122 @@ def create_sim_matrix(resultsMatrix):
         dict['P(T1_3G)'] = resultsMatrix[row][9]
         dict['P(T1_4G)'] = resultsMatrix[row][10]
         dict['P(T1_5G)'] = resultsMatrix[row][11]
-        dict['P(T1_6G+)'] = resultsMatrix[row][12]
+        dict['P(T1_6G)'] = resultsMatrix[row][12]
         dict['P(T2_0G)'] = resultsMatrix[row][13]
         dict['P(T2_1G)'] = resultsMatrix[row][14]
         dict['P(T2_2G)'] = resultsMatrix[row][15]
         dict['P(T2_3G)'] = resultsMatrix[row][16]
         dict['P(T2_4G)'] = resultsMatrix[row][17]
         dict['P(T2_5G)'] = resultsMatrix[row][18]
-        dict['P(T2_6G+)'] = resultsMatrix[row][19]
+        dict['P(T2_6G)'] = resultsMatrix[row][19]
         simulate_matrix.append(dict)
     return simulate_matrix
+
+def rankTeams(myGroup):
+    myList = []
+    t1 = ""
+    t2 = ""
+    t3 = ""
+    t4 = ""
+    teamNum = 1
+    for team in myGroup:
+        if teamNum == 1:
+            t1 = team
+        elif teamNum == 2:
+            t2 = team
+        elif teamNum == 3:
+            t3 = team
+        elif teamNum == 4:
+            t4 = team
+        else:
+            raise Exception('Team error')
+        gf, ga, gd, pts = myGroup[team]
+        myList.append((team, gf, ga, gd, pts))
+        teamNum += 1
+
+    sortedList = sorted(myList, key = operator.itemgetter(4, 3, 1, 0))[::-1]
+    return sortedList
+
+def simulate_games(myMatrix):
+
+    #myGroup = {'Team Name': gf, ga, gd, points)
+    #e.g. {'Saudi Arabia': (1, 2, -1, 0)}
+    numSimulations = 1
+    for iterNum in range(0, numSimulations):
+        for row in range(0, 48, 6):  #len(myMatrix), 6):          # for each group
+            myGroup = {}
+            myGroup[myMatrix[row]['Team 1']] = (0, 0, 0, 0)
+            myGroup[myMatrix[row]['Team 2']] = (0, 0, 0, 0)
+            myGroup[myMatrix[row + 1]['Team 2']] = (0, 0, 0, 0)
+            myGroup[myMatrix[row + 2]['Team 2']] = (0, 0, 0, 0)
+            for gameNum in range(0, 6): # for each match
+                t1 = myMatrix[row + gameNum]['Team 1']
+                t2 = myMatrix[row + gameNum]['Team 2']
+                t1_rand = random.random()
+                t2_rand = random.random()
+                t1_goals = 0
+                t2_goals = 0
+                t1_found = False
+                t2_found = False
+
+                for goalNum in range(0, 6):
+                    t1_goals = goalNum
+                    goalsProb = myMatrix[row + gameNum]['P(T1_' + str(goalNum) + 'G)']
+                    if t1_rand < goalsProb:
+                        t1_found = True
+                        break
+                    else:
+                        t1_rand -= goalsProb
+                for goalNum in range(0, 6):
+                    t2_goals = goalNum
+                    goalsProb = myMatrix[row + gameNum]['P(T2_' + str(goalNum) + 'G)']
+                    if t2_rand < goalsProb:
+                        t2_found = True
+                        break
+                    else:
+                        t2_rand -= goalsProb
+                if not t1_found:
+                    t1_goals = 6
+                if not t2_found:
+                    t2_goals = 6
+
+                #assign points to each team
+                t1_points = 0
+                t2_points = 0
+                if t1_goals == t2_goals:
+                    t1_points = 1
+                    t2_points = 1
+                elif t1_goals > t2_goals:
+                    t1_points = 3
+                else:
+                    t2_points = 3
+
+                #update data
+                t1_gf, t1_ga, t1_gd, t1_cur_points = myGroup[t1]
+                t2_gf, t2_ga, t2_gd, t2_cur_points = myGroup[t2]
+                t1_gf += t1_goals
+                t1_ga -= t2_goals
+                t1_gd += (t1_goals - t2_goals)
+                t1_cur_points += t1_points
+                t2_gf += t2_goals
+                t2_ga -= t1_goals
+                t2_gd += (t2_goals - t1_goals)
+                t2_cur_points += t2_points
+                myGroup[t1] = (t1_gf, t1_ga, t1_gd, t1_cur_points)
+                myGroup[t2] = (t2_gf, t2_ga, t2_gd, t2_cur_points)
+            groupRanks = rankTeams(myGroup)
+
+
+
+
+            #
+            # teamDict = {}
+            # for gameNum in range(0, 6):
+            #
+            #
+            #     print(myMatrix[row + gameNum])
+            #
+    #print(myGroup)
 
 def print_all(team_elo):
     world_cup_teams = get_world_cup_teams(team_elo)
@@ -163,7 +271,8 @@ def print_all(team_elo):
     resultsMatrix = print_match_predictions(worksheet, world_cup_teams)
 
     simulate_matrix = create_sim_matrix(resultsMatrix)
-    print(simulate_matrix[0])
+    game_sims = simulate_games(simulate_matrix)
+
     workbook.close()
 
 def choose_eta_weight(tourney):
