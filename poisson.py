@@ -176,15 +176,33 @@ def rankTeams(myGroup):
         teamNum += 1
 
     sortedList = sorted(myList, key = operator.itemgetter(4, 3, 1, 0))[::-1]
-    return sortedList
+
+    rank = 1
+    myList = []
+    for team in sortedList:
+        teamName, teamgf, teamga, teamgd, teamPoints = team
+        myList.append((rank, teamName, teamgf, teamga, teamgd, teamPoints))
+        rank += 1
+    return myList
 
 def simulate_games(myMatrix):
 
-    #myGroup = {'Team Name': gf, ga, gd, points)
-    #e.g. {'Saudi Arabia': (1, 2, -1, 0)}
+    #simulations = {'Saudi Arabia':[1,2,3,4,2,3,4,4,3,2,2,3], ...}
+    simulations = {}
     numSimulations = 1
     for iterNum in range(0, numSimulations):
         for row in range(0, 48, 6):  #len(myMatrix), 6):          # for each group
+            groupRanks = [] #handle ranking of groups
+
+            # if on the first iteration, add the teams to simulations
+            if iterNum == 0:
+                simulations[myMatrix[row]['Team 1']] = []
+                simulations[myMatrix[row]['Team 2']] = []
+                simulations[myMatrix[row + 1]['Team 2']] = []
+                simulations[myMatrix[row + 2]['Team 2']] = []
+
+            #myGroup = {'Team Name': gf, ga, gd, points)
+            #e.g. {'Saudi Arabia': (1, 2, -1, 0)}
             myGroup = {}
             myGroup[myMatrix[row]['Team 1']] = (0, 0, 0, 0)
             myGroup[myMatrix[row]['Team 2']] = (0, 0, 0, 0)
@@ -246,6 +264,11 @@ def simulate_games(myMatrix):
                 myGroup[t1] = (t1_gf, t1_ga, t1_gd, t1_cur_points)
                 myGroup[t2] = (t2_gf, t2_ga, t2_gd, t2_cur_points)
             groupRanks = rankTeams(myGroup)
+            print(groupRanks)
+            for myTuple in groupRanks:
+                teamRank, teamName, teamgf, teamga, teamgd, teamPoints = myTuple
+
+    print(simulations, len(simulations))
 
 
 
