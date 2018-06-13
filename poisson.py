@@ -5,16 +5,23 @@ import xlsxwriter
 import numpy as np
 import random
 import operator
+from collections import OrderedDict
 
 def get_world_cup_teams(team_elo):
-    worldcup_elo = {}
+    #use OrderedDict in Python2
+    #Python3 or later has automatically ordered dictionaries
+
+    #worldcup_elo = {}
+    worldcup_dict = OrderedDict()
     sheet = pd.read_csv('src/participatingteams.csv')
     for i, sheet_row in sheet.iterrows():
         team = sheet_row['Teams']
         group = sheet_row['Group']
         # off score, def score, group, seed in group
-        worldcup_elo[team] = (team_elo[team][1], team_elo[team][2], group[0], i) #int(group[1
-    return worldcup_elo
+        #worldcup_elo[team] = (team_elo[team][1], team_elo[team][2], group[0], i) #int(group[1
+        worldcup_dict[team] = (team_elo[team][1], team_elo[team][2], group[0], i) #int(group[1
+    #return worldcup_elo
+    return worldcup_dict
 
 def print_scores(workbook, worldcup_elo):
     BOLD = workbook.add_format({'bold': True})
@@ -188,7 +195,7 @@ def rankTeams(myGroup):
     return myList
 
 def simulate_games(myMatrix, numSimulations):
-
+    print(myMatrix)
     #simulations = {'Saudi Arabia':[1,2,3,4,2,3,4,4,3,2,2,3], ...}
     simulations = {}
     for iterNum in range(0, numSimulations):
@@ -210,6 +217,7 @@ def simulate_games(myMatrix, numSimulations):
             myGroup[myMatrix[row]['Team 2']] = (0, 0, 0, 0)
             myGroup[myMatrix[row + 1]['Team 2']] = (0, 0, 0, 0)
             myGroup[myMatrix[row + 2]['Team 2']] = (0, 0, 0, 0)
+
             for gameNum in range(0, 6): # for each match
                 t1 = myMatrix[row + gameNum]['Team 1']
                 t2 = myMatrix[row + gameNum]['Team 2']
@@ -273,6 +281,7 @@ def simulate_games(myMatrix, numSimulations):
                 currentList = simulations[teamName]
                 currentList.append(teamRank)
                 simulations[teamName] = currentList
+
     return simulations
 
 def sims_to_results(simulation_results):
@@ -322,9 +331,11 @@ def print_all(team_elo):
 
     worksheet = workbook.add_worksheet('Match Predictions')
     print_match_prediction_labels(worksheet, BOLD)
+
     resultsMatrix = print_match_predictions(worksheet, world_cup_teams)
 
     simulate_matrix = create_sim_matrix(resultsMatrix)
+
     game_sims = simulate_games(simulate_matrix, 10000)
     our_predictions = sims_to_results(game_sims)
 
@@ -426,5 +437,5 @@ def calc_elo(numIterations):
     return new_team_elo
 
 if __name__ == '__main__':
-    team_elo = calc_elo(100)
+    team_elo = calc_elo(1)
     print_all(team_elo)
